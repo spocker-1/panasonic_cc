@@ -2,7 +2,7 @@ from typing import Callable, Any
 from dataclasses import dataclass
 import logging
 
-from homeassistant.const import UnitOfTemperature, EntityCategory
+from homeassistant.const import UnitOfTemperature, EntityCategory, PERCENTAGE
 from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
@@ -175,6 +175,47 @@ AQUAREA_OUTSIDE_TEMPERATURE_DESCRIPTION = AquareaSensorEntityDescription(
     is_available=lambda device: device.temperature_outdoor is not None,
 )
 
+AQUAREA_PUMP_DUTY_DESCRIPTION = AquareaSensorEntityDescription(
+    key="pump_duty",
+    translation_key="pump_duty",
+    name="Pump Duty",
+    icon="mdi:speedometer",
+    device_class=SensorDeviceClass.POWER_FACTOR,
+    state_class=SensorStateClass.MEASUREMENT,
+    native_unit_of_measurement=PERCENTAGE,
+    get_state=lambda device: int(device.pump_duty),
+    is_available=lambda device: True
+)
+
+AQUAREA_DIRECTION_DESCRIPTION = AquareaSensorEntityDescription(
+    key="direction",
+    translation_key="direction",
+    name="Direction",
+    icon="mdi:swap-horizontal",
+    get_state=lambda device: device.current_direction.name if device.current_direction else "UNKNOWN",
+    is_available=lambda device: True
+)
+
+AQUAREA_DEVICE_MODE_STATUS_DESCRIPTION = AquareaSensorEntityDescription(
+    key="device_mode_status",
+    translation_key="device_mode_status",
+    name="Device Mode Status",
+    icon="mdi:information",
+    entity_category=EntityCategory.DIAGNOSTIC,
+    get_state=lambda device: device.device_mode_status.name if device.device_mode_status else "UNKNOWN",
+    is_available=lambda device: True
+)
+
+AQUAREA_FAULT_STATUS_DESCRIPTION = AquareaSensorEntityDescription(
+    key="fault_status",
+    translation_key="fault_status",
+    name="Fault Status",
+    icon="mdi:alert",
+    entity_category=EntityCategory.DIAGNOSTIC,
+    get_state=lambda device: device.current_error.error_message if device.is_on_error else "OK",
+    is_available=lambda device: True
+)
+
 def create_zone_temperature_description(zone: PanasonicDeviceZone):
     return PanasonicSensorEntityDescription(
         key = f"zone-{zone.id}-temperature",
@@ -217,6 +258,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     for coordinator in aquarea_coordinators:
         entities.append(AquareaSensorEntity(coordinator, AQUAREA_OUTSIDE_TEMPERATURE_DESCRIPTION))
+        entities.append(AquareaSensorEntity(coordinator, AQUAREA_PUMP_DUTY_DESCRIPTION))
+        entities.append(AquareaSensorEntity(coordinator, AQUAREA_DIRECTION_DESCRIPTION))
+        entities.append(AquareaSensorEntity(coordinator, AQUAREA_DEVICE_MODE_STATUS_DESCRIPTION))
+        entities.append(AquareaSensorEntity(coordinator, AQUAREA_FAULT_STATUS_DESCRIPTION))
 
     async_add_entities(entities)
 

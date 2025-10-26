@@ -1,4 +1,5 @@
 """Platform for the Panasonic Comfort Cloud."""
+
 import logging
 from typing import Dict
 
@@ -15,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
 from aio_panasonic_comfort_cloud import ApiClient
 from aioaquarea import Client as AquareaApiClient, AquareaEnvironment
+from aioaquarea.errors import AuthenticationError
 
 from .const import (
     CONF_UPDATE_INTERVAL_VERSION,
@@ -120,24 +122,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     if api.has_unknown_devices or AQUAREA_DEMO:
         try:
-            
+            _LOGGER.info("Starting Aquarea setup...")
             if not AQUAREA_DEMO:
+                _LOGGER.info("Creating Aquarea API client with real credentials")
                 aquarea_api_client = AquareaApiClient(client, username, password)
                 await aquarea_api_client.login()
             else:
+                _LOGGER.info("Creating Aquarea API client in DEMO mode")
                 aquarea_api_client = AquareaApiClient(client, environment=AquareaEnvironment.DEMO)
-                aquarea_api_client._access_token = 'dummy'
-                aquarea_api_client._token_expiration = None
-            aquarea_devices = await aquarea_api_client.get_devices(include_long_id=True)
+                aquarea_api_client._api_client.access_token = 'dummy'
+                aquarea_api_client._api_client.token_expiration = None
+            _LOGGER.info("Fetching Aquarea devices...")
+            aquarea_devices = await aquarea_api_client.get_devices()
+            _LOGGER.info(f"Found {len(aquarea_devices)} Aquarea device(s)")
             for aquarea_device in aquarea_devices:
                 try:
+                    _LOGGER.info(f"Setting up Aquarea device: {aquarea_device.name}")
                     aquarea_device_coordinator = AquareaDeviceCoordinator(hass, conf, aquarea_api_client, aquarea_device)
                     await aquarea_device_coordinator.async_config_entry_first_refresh()
                     aquarea_coordinators.append(aquarea_device_coordinator)
+                    _LOGGER.info(f"Successfully setup Aquarea device: {aquarea_device.name}")
                 except Exception as e:
-                    _LOGGER.warning(f"Failed to setup Aquarea device: {aquarea_device.name} ({e})", exc_info=e)
+                    _LOGGER.error(f"Failed to setup Aquarea device: {aquarea_device.name} ({e})", exc_info=e)
+        except AuthenticationError as e:
+            _LOGGER.error(f"Aquarea authentication failed (2FA may be required): {e}", exc_info=e)
+            _LOGGER.error("The Aquarea API currently does not support 2FA/MFA verification")
+            _LOGGER.error("Please check your Panasonic account settings and disable 2FA if needed")
         except Exception as e:
-            _LOGGER.warning(f"Failed to setup Aquarea: {e}", exc_info=e)
+            _LOGGER.error(f"Failed to setup Aquarea: {e}", exc_info=e)
 
 
     hass.data[DOMAIN][DATA_COORDINATORS] = data_coordinators

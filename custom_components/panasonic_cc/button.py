@@ -18,12 +18,18 @@ class PanasonicButtonEntityDescription(ButtonEntityDescription):
     func: Callable[[PanasonicDeviceCoordinator], Awaitable[Any]] | None = None
 
 
+async def _update_app_version(coordinator: PanasonicDeviceCoordinator) -> None:
+    """Update app version."""
+    app_version = getattr(coordinator.api_client, '_app_version', None)
+    if app_version and hasattr(app_version, 'refresh'):
+        await app_version.refresh()
+
 APP_VERSION_DESCRIPTION = PanasonicButtonEntityDescription(
     key="update_app_version",
     name="Fetch latest app version",
     icon="mdi:refresh",
     entity_category=EntityCategory.DIAGNOSTIC,
-    func = lambda coordinator: coordinator.api_client.update_app_version()
+    func = _update_app_version
 )
 
 UPDATE_DATA_DESCRIPTION = ButtonEntityDescription(
