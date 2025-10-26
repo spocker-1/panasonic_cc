@@ -51,12 +51,15 @@ class PanasonicDeviceCoordinator(DataUpdateCoordinator[int]):
     
     @property
     def device_info(self)->DeviceInfo:
+        # Access app_version via private attribute
+        app_version = getattr(self._api_client, '_app_version', None)
+        version = app_version.version if app_version and hasattr(app_version, 'version') else '1.0.0'
         return DeviceInfo(
             identifiers={(DOMAIN, self._panasonic_device_info.id )},
             manufacturer=MANUFACTURER,
             model=self._panasonic_device_info.model,
             name=self._panasonic_device_info.name,
-            sw_version=self._api_client.app_version
+            sw_version=version
         )
     
     def get_change_request_builder(self):
@@ -126,12 +129,15 @@ class PanasonicDeviceEnergyCoordinator(DataUpdateCoordinator[int]):
     
     @property
     def device_info(self)->DeviceInfo:
+        # Access app_version via private attribute
+        app_version = getattr(self._api_client, '_app_version', None)
+        version = app_version.version if app_version and hasattr(app_version, 'version') else '1.0.0'
         return DeviceInfo(
             identifiers={(DOMAIN, self._panasonic_device_info.id )},
             manufacturer=MANUFACTURER,
             model=self._panasonic_device_info.model,
             name=self._panasonic_device_info.name,
-            sw_version=self._api_client.app_version
+            sw_version=version
         )
 
     async def _fetch_device_data(self)->int:
@@ -165,7 +171,13 @@ class AquareaDeviceCoordinator(DataUpdateCoordinator):
         self._aquarea_device_info = device_info
         self._device:AquareaDevice | None = None
         self._update_id = 0
-        self._is_demo = api_client._environment == AquareaEnvironment.DEMO
+        # Access environment via private attribute (_environment) from client
+        self._is_demo = self._get_environment() == AquareaEnvironment.DEMO
+
+    def _get_environment(self) -> AquareaEnvironment:
+        """Get environment from client."""
+        # Access private attribute _environment to avoid modifying vendor library
+        return getattr(self._api_client, '_environment', AquareaEnvironment.PRODUCTION)
 
     @property
     def device(self) -> AquareaDevice:
@@ -188,8 +200,8 @@ class AquareaDeviceCoordinator(DataUpdateCoordinator):
             identifiers={(DOMAIN, self.device_id)},
             manufacturer=self.device.manufacturer,
             model="",
-            name=self.device.name,
-            sw_version=self.device.version,
+            name=self.device.device_name,
+            sw_version=self.device.firmware_version,
         )
 
     async def _fetch_device_data(self)->int:
